@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>D3 + Mermaid + Zoom</title>
+    <!-- 1. Import Mermaid -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: false });
+        window.mermaid = mermaid;
+    </script>
+    <!-- 2. Import D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- 3. Import FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f4f4f4;
+            overflow: hidden;
+        }
+
+        /* LEFT: Editor */
+        #editor-pane {
+            width: 35%;
+            background: #282c34;
+            display: flex;
+            flex-direction: column;
+            border-right: 2px solid #ccc;
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
+        }
+
+        .header {
+            padding: 10px 15px;
+            background: #21252b;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        textarea {
+            flex-grow: 1;
+            background-color: #282c34;
+            color: #abb2bf;
+            border: none;
+            padding: 20px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+        }
+
+        /* RIGHT: Visualization */
+        #viz-pane {
+            width: 65%;
+            position: relative;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Hide scrollbars, we use D3 zoom now */
+        }
+
+        #mermaid-container {
+            flex-grow: 1;
+            width: 100%;
+            height: 100%;
+            cursor: grab; /* Show grab cursor */
+        }
+
+        #mermaid-container:active {
+            cursor: grabbing;
+        }
+
+        /* Zoom Controls */
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .btn {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: #f0f0f0; }
+
+        /* Ghost Zone */
+        #ghost-zone {
+            height: 120px;
+            background-color: #fff0f0;
+            border-top: 2px dashed #ffcccc;
+            position: relative;
+            flex-shrink: 0;
+            z-index: 20;
+        }
+        
+        #ghost-label {
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            color: #ff4d4d;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- LEFT PANE -->
+    <div id="editor-pane">
+        <div class="header">
+            <span>Editor</span>
+            <i class="fa-solid fa-code"></i>
+        </div>
+        <textarea id="code-input" spellcheck="false" placeholder="Type Mermaid code here...">
+graph TD
+    Start((Start)) --> Input[/Input/]
+    Input --> Check{Valid?}
+    Check -- Yes --> Save[(Database)]
+    Check -- No --> Error[Log Error]</textarea>
+    </div>
+
+    <!-- RIGHT PANE -->
+    <div id="viz-pane">
+        
+        <!-- Zoom Buttons -->
+        <div id="controls">
+            <div class="btn" onclick="zoomAction(1.2)" title="Zoom In"><i class="fa-solid fa-plus"></i></div>
+            <div class="btn" onclick="zoomAction(0.8)" title="Zoom Out"><i class="fa-solid fa-minus"></i></div>
+            <div class="btn" onclick="resetZoom()" title="Reset View"><i class="fa-solid fa-compress"></i></div>
+        </div>
+
+        <!-- Diagram Area -->
+        <div id="mermaid-container">
+            <pre class="mermaid" id="render-target"></pre>
+        </div>
+
+        <!-- Ghost Zone -->
+        <div id="ghost-zone">
+            <div id="ghost-label">Deleted Nodes</div>
+            <svg id="d3-canvas" width="100%" height="100%"></svg>
+        </div>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        const input = document.getElementById('code-input');
+        const container = document.getElementById('mermaid-container');
+        
+        // --- STATE MANAGEMENT ---
+        let previousIDs = new Set();
+        let timer;
+        
+        // Zoom State
+        let currentTransform = d3.zoomIdentity; // Stores x, y, k (scale)
+        let zoomBehavior; // Holds the D3 zoom function
+
+        // --- 1. PARSER ---
+        function extractIDs(text) {
+            const ids = new Set();
+            const regex = /(?:^|\s|-->|--)([\w]+)(?=\[|\(|\{|\(\()|([\w]+)(?=\s*-->)/gm;
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                let id = match[1] || match[2];
+                if(id && !['graph','TD','LR'].includes(id)) ids.add(id);
+            }
+            return ids;
+        }
+
+        // --- 2. RENDER LOOP ---
+        const renderDiagram = async () => {
+            const code = input.value;
+            const currentIDs = extractIDs(code);
+            const newNodes = [...currentIDs].filter(x => !previousIDs.has(x));
+            const deletedNodes = [...previousIDs].filter(x => !currentIDs.has(x));
+            const oldNodes = [...currentIDs].filter(x => previousIDs.has(x));
+            previousIDs = currentIDs;
+
+            // Animate Deletions
+            if (deletedNodes.length > 0) animateDeletions(deletedNodes);
+
+            // Render Mermaid
+            container.innerHTML = `<pre class="mermaid">${code}</pre>`;
+            
+            try {
+                await mermaid.run({ nodes: container.querySelectorAll('.mermaid') });
+                
+                // Color Highlighting
+                highlightNodes(newNodes, oldNodes);
+
+                // *** APPLY ZOOM LOGIC ***
+                enableZoom();
+
+            } catch (err) {
+                console.log("Waiting for valid syntax...");
+            }
+        };
+
+        // --- 3. ZOOM LOGIC (The New Part) ---
+        function enableZoom() {
+            // Select the SVG generated by Mermaid
+            const svg = d3.select("#mermaid-container svg");
+            
+            // Ensure SVG fills the container so we can drag anywhere
+            svg.attr("width", "100%").attr("height", "100%");
+            svg.style("max-width", "none");
+
+            // Define D3 Zoom Behavior
+            zoomBehavior = d3.zoom()
+                .scaleExtent([0.1, 5]) // Limit zoom from 0.1x to 5x
+                .on("zoom", (event) => {
+                    // Update global state
+                    currentTransform = event.transform;
+                    // Apply transform to the INNER group of the SVG (usually the first <g>)
+                    svg.select("g").attr("transform", event.transform);
+                });
+
+            // Attach zoom to the SVG
+            svg.call(zoomBehavior);
+
+            // RESTORE previous position (so it doesn't jump back to center when you type)
+            // But if it's the very first render, currentTransform is Identity (0,0), so it stays centered.
+            svg.call(zoomBehavior.transform, currentTransform);
+        }
+
+        // Exposed functions for Buttons
+        window.zoomAction = (factor) => {
+            const svg = d3.select("#mermaid-container svg");
+            if (!svg.empty() && zoomBehavior) {
+                zoomBehavior.scaleBy(svg.transition().duration(300), factor);
+            }
+        };
+
+        window.resetZoom = () => {
+            const svg = d3.select("#mermaid-container svg");
+            if (!svg.empty() && zoomBehavior) {
+                // Reset to default (Scale 1, x 0, y 0)
+                currentTransform = d3.zoomIdentity;
+                zoomBehavior.transform(svg.transition().duration(750), d3.zoomIdentity);
+            }
+        };
+
+        // --- 4. COLOR LOGIC ---
+        function highlightNodes(newIds, oldIds) {
+            d3.selectAll('.node').each(function() {
+                const element = d3.select(this);
+                const fullId = this.id;
+                const shape = element.select('rect, circle, polygon, path');
+
+                if (newIds.some(id => fullId.includes(id))) {
+                    shape.style('fill', '#4caf50').transition().duration(1500).style('fill', '#ddf7e1'); // Green
+                } else if (oldIds.some(id => fullId.includes(id))) {
+                    shape.style('fill', '#e0e0e0'); // Gray
+                }
+            });
+        }
+
+        // --- 5. GHOST ZONE LOGIC ---
+        function animateDeletions(ids) {
+            const svg = d3.select("#d3-canvas");
+            const circles = svg.selectAll("g").data(ids, d => d);
+            const enter = circles.enter().append("g")
+                .attr("transform", (d, i) => `translate(${40 + (i * 50)}, 60)`);
+
+            enter.append("circle")
+                .attr("r", 0).attr("fill", "#ff4d4d")
+                .transition().duration(500).attr("r", 20);
+
+            enter.append("text")
+                .text(d => d.substring(0,5)) // Truncate long text
+                .attr("text-anchor", "middle").attr("dy", 4)
+                .attr("fill", "white").style("font-size", "10px")
+                .style("opacity", 0).transition().duration(500).style("opacity", 1);
+
+            enter.transition().delay(2000).duration(1000).style("opacity", 0).remove();
+        }
+
+        // Input Listener
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(renderDiagram, 800);
+        });
+
+        // Initial Run
+        renderDiagram();
+    </script>
+</body>
+</html>
