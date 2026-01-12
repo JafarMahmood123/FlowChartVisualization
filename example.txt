@@ -1,0 +1,46 @@
+graph TD
+    %% --- The Trigger ---
+    User((User)) -->|Init Transfer| App[Mobile App]
+    App -->|HTTPS Post| API[API Gateway]
+
+    %% --- Security Layer ---
+    subgraph Security_Zone
+        API --> Auth{Is Token Valid?}
+        Auth -- No --> Log1[Log Intrusion]
+        Log1 --> Block((Block IP))
+        
+        Auth -- Yes --> Rate{Rate Limit?}
+        Rate -- Exceeded --> Wait[Return 429]
+        
+        Rate -- OK --> FraudScan{AI Fraud Check}
+        FraudScan -- High Risk --> Freeze[Freeze Account]
+        Freeze --> ManReview[[Manual Review]]
+    end
+
+    %% --- Transaction Logic ---
+    subgraph Core_Banking
+        FraudScan -- Low Risk --> GetBal[(DB: Check Balance)]
+        GetBal --> MoneyCheck{Balance > Amt?}
+        
+        MoneyCheck -- No --> Reject[Reject Transaction]
+        
+        MoneyCheck -- Yes --> Lock[Row Lock]
+        Lock --> Debit[Deduct Sender]
+        Debit --> Credit[Add to Receiver]
+        Credit --> Commit[(DB: Commit)]
+        Commit --> Unlock[Row Unlock]
+    end
+
+    %% --- Notification System ---
+    subgraph Notify_Service
+        Unlock --> Topic>Kafka Stream]
+        Topic --> Email[Send Email]
+        Topic --> Push[Push Notification]
+        Topic --> Analytics[Update Dashboard]
+    end
+
+    %% --- End States ---
+    Email --> Success((Done))
+    Push --> Success
+    Reject --> Fail((Failed))
+    Wait --> Fail
