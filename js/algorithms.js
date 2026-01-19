@@ -4,17 +4,14 @@ export function getSequenceBFS(text) {
     const { adj, startNode } = parseMermaidGraph(text);
     if (!startNode) return [];
     
-    const visited = new Set(); 
-    const queue = [startNode]; 
+    const visited = new Set();
+    const queue = [startNode];
     const result = [];
     
+    // Initial Snapshot
     result.push({ 
-        id: startNode, 
-        msg: `Start at Root [${startNode}]`, 
-        type: 'log-info', 
-        structure: [...queue], 
-        structName: 'Queue', 
-        visited: [] 
+        id: startNode, msg: `Start at [${startNode}]`, type: 'log-info', 
+        structure: [...queue], structName: 'Queue', visited: [] 
     });
 
     while (queue.length > 0) {
@@ -30,14 +27,8 @@ export function getSequenceBFS(text) {
             });
             
             result.push({ 
-                id: node, 
-                msg: `Visited ${node}`, 
-                action: `Dequeued ${node}`, 
-                newAdds: newAdds, 
-                type: 'log-add', 
-                structure: [...queue], 
-                structName: 'Queue', 
-                visited: [...visited] 
+                id: node, msg: `Visited ${node}`, action: `Dequeued ${node}`, newAdds: newAdds, type: 'log-add', 
+                structure: [...queue], structName: 'Queue', visited: [...visited] 
             });
         }
     }
@@ -48,17 +39,13 @@ export function getSequenceDFS(text) {
     const { adj, startNode } = parseMermaidGraph(text);
     if (!startNode) return [];
     
-    const visited = new Set(); 
-    const stack = [startNode]; 
+    const visited = new Set();
+    const stack = [startNode];
     const result = [];
     
     result.push({ 
-        id: startNode, 
-        msg: `Start at Root [${startNode}]`, 
-        type: 'log-info', 
-        structure: [...stack], 
-        structName: 'Stack', 
-        visited: [] 
+        id: startNode, msg: `Push [${startNode}]`, type: 'log-info', 
+        structure: [...stack], structName: 'Stack', visited: [] 
     });
 
     while (stack.length > 0) {
@@ -70,14 +57,8 @@ export function getSequenceDFS(text) {
             unvisited.forEach(n => stack.push(n));
             
             result.push({ 
-                id: node, 
-                msg: `Visited ${node}`, 
-                action: `Popped ${node}`, 
-                newAdds: unvisited, 
-                type: 'log-add', 
-                structure: [...stack], 
-                structName: 'Stack', 
-                visited: [...visited] 
+                id: node, msg: `Visited ${node}`, action: `Popped ${node}`, newAdds: unvisited, type: 'log-add', 
+                structure: [...stack], structName: 'Stack', visited: [...visited] 
             });
         }
     }
@@ -87,11 +68,7 @@ export function getSequenceDFS(text) {
 export function getSequenceLinear(text) {
     const { allIDs } = parseMermaidGraph(text);
     return [...allIDs].map(id => ({ 
-        id: id, 
-        msg: `Processing Node: ${id}`, 
-        type: 'log-info', 
-        structure: [], 
-        structName: 'Linear', 
-        visited: [] 
+        id: id, msg: `Node: ${id}`, type: 'log-info', 
+        structure: [], structName: 'Linear', visited: [] 
     }));
 }

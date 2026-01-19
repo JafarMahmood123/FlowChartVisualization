@@ -23,8 +23,7 @@ export function updateStructUI(step, added, removed) {
         const el = document.createElement('div');
         el.className = 'struct-node node-exit';
         el.innerText = item;
-        if(isStack) structContent.prepend(el); 
-        else structContent.insertBefore(el, structContent.firstChild);
+        if(isStack) structContent.prepend(el); else structContent.insertBefore(el, structContent.firstChild);
     });
 
     if (structContent.children.length === 0) structContent.innerHTML = '<span style="color:#666; font-size:12px;">(Empty)</span>';
@@ -99,7 +98,7 @@ export function highlightActiveNode(targetId) {
     });
 }
 
-// Zoom Logic
+// --- ZOOM LOGIC ---
 let zoomBehavior;
 let currentTransform = d3.zoomIdentity;
 
@@ -108,7 +107,10 @@ export function enableZoom() {
     svg.attr("width", "100%").attr("height", "100%").style("max-width", "none");
     zoomBehavior = d3.zoom()
         .scaleExtent([0.1, 5])
-        .on("zoom", (e) => { currentTransform = e.transform; svg.select("g").attr("transform", e.transform); });
+        .on("zoom", (e) => {
+            currentTransform = e.transform;
+            svg.select("g").attr("transform", e.transform);
+        });
     svg.call(zoomBehavior);
     svg.call(zoomBehavior.transform, currentTransform);
 }

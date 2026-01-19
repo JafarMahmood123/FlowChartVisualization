@@ -1,20 +1,18 @@
 body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f4f4f4; overflow: hidden; }
 
-/* LEFT: Editor Pane */
-#editor-pane { width: 35%; background: #282c34; display: flex; flex-direction: column; border-right: 2px solid #ccc; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.2); }
+/* LEFT PANE */
+#editor-pane { width: 35%; background: #282c34; display: flex; flex-direction: column; border-right: 2px solid #ccc; z-index: 10; }
 .header { padding: 10px 15px; background: #21252b; color: white; display: flex; justify-content: space-between; align-items: center; }
-
-/* FIX: Editor Height */
 #code-editor { flex-grow: 1; position: relative; overflow: hidden; }
 .CodeMirror { height: 100%; font-family: 'Fira Code', 'Consolas', monospace; font-size: 14px; }
 select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px; border-radius: 4px; outline: none; cursor: pointer; }
 
-/* RIGHT: Visualization Pane */
+/* RIGHT PANE */
 #viz-pane { width: 65%; position: relative; background: white; display: flex; flex-direction: column; overflow: hidden; }
 #mermaid-container { flex-grow: 1; width: 100%; overflow: hidden; cursor: grab; position: relative; }
 #mermaid-container:active { cursor: grabbing; }
 
-/* --- FLOATING PANELS --- */
+/* PANELS */
 #panel-toggles { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
 .toggle-btn { width: 40px; height: 40px; background: #333; color: white; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s, background 0.2s; }
 .toggle-btn:hover { background: #555; transform: scale(1.1); }
@@ -28,7 +26,7 @@ select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px
 .panel-header, .ds-title { padding: 8px 12px; background: rgba(255, 255, 255, 0.1); font-weight: bold; border-bottom: 1px solid #444; }
 .panel-content { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
 
-/* Animations & Colors */
+/* LOG & DS ITEMS */
 .log-item { display: flex; gap: 8px; opacity: 0.8; transition: color 0.3s; }
 .log-item.active { opacity: 1; font-weight: bold; background: rgba(255,255,255,0.05); border-radius: 4px; padding: 2px; }
 .log-add { color: #4fc3f7; } .log-remove { color: #ef5350; }
@@ -44,13 +42,13 @@ select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px
 @keyframes flashBlue { 0% { background-color: #007bff; transform: scale(0.5); } 100% { background-color: #444; transform: scale(1); } }
 @keyframes flashRed { 0% { background-color: #dc3545; transform: scale(1); opacity: 1; } 100% { background-color: #444; transform: scale(0.9); opacity: 0.3; } }
 
-/* Deletion Feed */
+/* FEED */
 #deletion-feed { position: absolute; bottom: 20px; right: 20px; width: 250px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 95; pointer-events: none; }
 .deletion-card { background: rgba(40, 44, 52, 0.95); backdrop-filter: blur(5px); border-left: 4px solid #ff4d4d; border-radius: 4px; padding: 12px 15px; color: white; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; transform: translateX(50px); transition: all 0.5s ease; }
 .deletion-card.show { opacity: 1; transform: translateX(0); }
 .del-icon { color: #ff4d4d; font-size: 16px; margin-right:10px; }
 
-/* Controls */
+/* CONTROLS */
 #playback-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 10px 20px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; gap: 12px; align-items: center; z-index: 100; font-size: 14px; white-space: nowrap; }
 .control-group { display: flex; align-items: center; gap: 5px; }
 .separator { width: 1px; height: 20px; background: #ddd; margin: 0 5px; }

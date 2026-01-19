@@ -2,18 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Visualizer: Modular & Fixed</title>
+    <title>Visualizer: Pro Modular</title>
     
-    <!-- D3 & CodeMirror (Global Scripts) -->
+    <!-- Global Libraries -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- CodeMirror (The Editor) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/mode/simple.min.js"></script>
     
-    <!-- Your Custom CSS -->
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,27 +22,31 @@
     <div id="editor-pane">
         <div class="header">
             <span><i class="fa-solid fa-code"></i> Editor</span>
-            <select id="line-style">
+            <select id="line-style" onchange="updateLineStyle()">
                 <option value="basis">Curved</option>
                 <option value="linear">Straight</option>
-                <option value="step">Corner</option>
+                <!-- FIX: Use 'stepAfter' for proper corners -->
+                <option value="stepAfter">Corner</option>
             </select>
         </div>
-        <!-- This container must exist for CodeMirror -->
         <div id="code-editor"></div>
     </div>
 
     <div id="viz-pane">
+        
+        <!-- SIDEBAR TOGGLES -->
         <div id="panel-toggles">
             <div class="toggle-btn active" onclick="togglePanel('log')" title="Toggle Log"><i class="fa-solid fa-terminal"></i></div>
             <div class="toggle-btn active" onclick="togglePanel('ds')" title="Toggle Data Structures"><i class="fa-solid fa-layer-group"></i></div>
         </div>
 
+        <!-- LOG PANEL -->
         <div id="log-panel" class="floating-panel visible">
             <div class="panel-header">Execution Log</div>
             <div id="log-content" class="panel-content"><div class="log-item">Ready...</div></div>
         </div>
 
+        <!-- DATA STRUCTURE PANEL -->
         <div id="ds-panel" class="floating-panel visible">
             <div class="ds-section" style="flex-grow: 1;">
                 <div class="ds-title" id="ds-struct-title">Queue / Stack</div>
@@ -53,18 +58,23 @@
             </div>
         </div>
 
+        <!-- CONTROLS -->
         <div id="playback-controls">
-            <select id="algo-mode">
+            <select id="algo-mode" onchange="resetSimulation()">
                 <option value="bfs">BFS (Queue)</option>
                 <option value="dfs">DFS (Stack)</option>
                 <option value="linear">Linear</option>
             </select>
             <div class="separator"></div>
-            <i class="fa-solid fa-gauge-high" style="color:#888;"></i>
-            <input type="range" id="speed-slider" min="100" max="2000" step="100" value="800">
+            <div class="control-group">
+                <i class="fa-solid fa-gauge-high" style="color:#888;"></i>
+                <input type="range" id="speed-slider" min="100" max="2000" step="100" value="800">
+            </div>
             <div class="separator"></div>
-            <span>Win:</span>
-            <input type="number" id="window-size" value="1" min="1" max="5">
+            <div class="control-group">
+                <span>Win:</span>
+                <input type="number" id="window-size" value="1" min="1" max="5">
+            </div>
             <div class="separator"></div>
             <button class="step-btn" onclick="manualStep(-1)"><i class="fa-solid fa-backward-step"></i></button>
             <button onclick="togglePlay()" id="play-btn"><i class="fa-solid fa-play"></i></button>
@@ -88,7 +98,7 @@
         <div id="ghost-zone"><svg id="d3-canvas" width="100%" height="100%"></svg></div>
     </div>
 
-    <!-- MAIN MODULE ENTRY POINT -->
+    <!-- MAIN MODULE -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>

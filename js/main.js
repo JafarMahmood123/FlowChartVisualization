@@ -1,14 +1,11 @@
 /* globals CodeMirror, d3 */
-// IMPORT MERMAID AS MODULE
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-
 import { parseMermaidGraph } from './parser.js';
 import { getSequenceBFS, getSequenceDFS, getSequenceLinear } from './algorithms.js';
 import * as UI from './ui.js';
 
 mermaid.initialize({ startOnLoad: false });
 
-// CodeMirror
 CodeMirror.defineSimpleMode("mermaid", {
     start: [
         {regex: /graph|TD|LR|subgraph|end/, token: "keyword"},
@@ -17,6 +14,7 @@ CodeMirror.defineSimpleMode("mermaid", {
         {regex: /[\w]+/, token: "variable"},
     ]
 });
+
 const editor = CodeMirror(document.getElementById("code-editor"), {
     value: `graph TD
     %% --- The Trigger ---
@@ -46,7 +44,7 @@ let globalIndex = 0;
 document.getElementById('speed-slider').addEventListener('input', (e) => currentSpeed = parseInt(e.target.value));
 editor.on("change", () => { clearTimeout(timer); timer = setTimeout(renderDiagram, 800); });
 
-// Attach to Window for HTML Buttons
+// Attach to Window
 window.togglePanel = (id) => {
     const panel = document.getElementById(`${id}-panel`);
     const btn = document.querySelector(`.toggle-btn[onclick="togglePanel('${id}')"]`);
@@ -61,6 +59,8 @@ window.updateLineStyle = () => renderDiagram();
 const renderDiagram = async () => {
     fullStop();
     let code = editor.getValue();
+    
+    // FIX: Retrieve style and inject config for corners
     const curveStyle = document.getElementById('line-style').value;
     const fullCode = `%%{init: {'flowchart': {'curve': '${curveStyle}'}}}%%\n` + code;
     
@@ -115,7 +115,6 @@ function drawCurrentStep() {
     document.getElementById('step-counter').innerText = `${Math.min(globalIndex + 1, globalSequence.length)}/${globalSequence.length}`;
 }
 
-// Controls
 window.togglePlay = () => {
     if (isPlaying) { isPlaying = false; clearTimeout(simulationTimeout); document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-play"></i>'; } 
     else { if (globalSequence.length === 0) generateSequence(); if (globalIndex >= globalSequence.length) globalIndex = 0; isPlaying = true; document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-pause"></i>'; autoStep(); }
@@ -143,5 +142,4 @@ function autoStep() {
     drawCurrentStep(); globalIndex++; simulationTimeout = setTimeout(autoStep, currentSpeed);
 }
 
-// Init
 setTimeout(renderDiagram, 500);
