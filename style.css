@@ -6,6 +6,9 @@ body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-se
 .CodeMirror { flex-grow: 1; height: 100%; font-family: 'Fira Code', 'Consolas', monospace; font-size: 14px; }
 select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px; border-radius: 4px; outline: none; cursor: pointer; }
 
+/* FIX: Editor container sizing */
+#code-editor { flex-grow: 1; position: relative; overflow: hidden; }
+
 /* RIGHT: Visualization Pane */
 #viz-pane { width: 65%; position: relative; background: white; display: flex; flex-direction: column; overflow: hidden; }
 #mermaid-container { flex-grow: 1; width: 100%; overflow: hidden; cursor: grab; position: relative; }
@@ -30,7 +33,7 @@ select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px
 
 /* Specific Panel Positioning */
 #log-panel { top: 20px; max-height: 200px; }
-#ds-panel { top: 240px; bottom: 180px; } /* Fixed top and bottom anchors */
+#ds-panel { top: 240px; bottom: 180px; }
 
 #log-header, .ds-title { padding: 8px 12px; background: rgba(255, 255, 255, 0.1); font-weight: bold; border-bottom: 1px solid #444; flex-shrink: 0; }
 #log-content { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; flex-grow: 1; }
@@ -39,28 +42,11 @@ select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px
 .log-item.active { opacity: 1; font-weight: bold; background: rgba(255,255,255,0.05); border-radius: 4px; padding: 2px; }
 .log-add { color: #4fc3f7; } .log-remove { color: #ef5350; }
 
-/* --- FIX FOR SCROLLING DATA STRUCTURES --- */
-.ds-section { 
-    padding: 10px; 
-    border-bottom: 1px solid #444; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 5px;
-    overflow: hidden; /* Crucial: Prevents the section itself from growing infinitely */
-}
+/* Data Structures Section */
+.ds-section { padding: 10px; border-bottom: 1px solid #444; display: flex; flex-direction: column; gap: 5px; overflow: hidden; }
+.struct-container { display: flex; flex-wrap: wrap; gap: 5px; min-height: 30px; align-content: flex-start; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
 
-.struct-container { 
-    display: flex; 
-    flex-wrap: wrap; 
-    gap: 5px; 
-    min-height: 30px; 
-    align-content: flex-start;
-    overflow-y: auto; /* Crucial: Adds the scrollbar when items overflow */
-    flex-grow: 1;     /* Crucial: Takes up all remaining space in the section */
-    padding-right: 5px; /* Adds breathing room for the scrollbar */
-}
-
-/* Custom Scrollbar Styling for Webkit (Chrome/Safari) */
+/* Scrollbars */
 .struct-container::-webkit-scrollbar, #log-content::-webkit-scrollbar { width: 6px; }
 .struct-container::-webkit-scrollbar-thumb, #log-content::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
 .struct-container::-webkit-scrollbar-track, #log-content::-webkit-scrollbar-track { background: transparent; }
@@ -74,7 +60,7 @@ select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px
 @keyframes flashBlue { 0% { background-color: #007bff; transform: scale(0.5); } 100% { background-color: #444; transform: scale(1); } }
 @keyframes flashRed { 0% { background-color: #dc3545; transform: scale(1); opacity: 1; } 100% { background-color: #444; transform: scale(0.9); opacity: 0.3; } }
 
-/* DELETION FEED */
+/* Deletion Feed */
 #deletion-feed { position: absolute; bottom: 20px; right: 20px; width: 250px; display: flex; flex-direction: column-reverse; gap: 10px; z-index: 95; pointer-events: none; }
 .deletion-card { background: rgba(40, 44, 52, 0.95); backdrop-filter: blur(5px); border-left: 4px solid #ff4d4d; border-radius: 4px; padding: 12px 15px; color: white; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; transform: translateX(50px); transition: all 0.5s ease; }
 .deletion-card.show { opacity: 1; transform: translateX(0); }
@@ -83,7 +69,7 @@ select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px
 .del-text { font-weight: bold; font-size: 14px; }
 .del-sub { font-size: 10px; color: #aaa; margin-left: auto; }
 
-/* CONTROLS */
+/* Controls */
 #playback-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 10px 20px; border-radius: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; gap: 12px; align-items: center; z-index: 100; font-size: 14px; white-space: nowrap; }
 .control-group { display: flex; align-items: center; gap: 5px; }
 .separator { width: 1px; height: 20px; background: #ddd; margin: 0 5px; }
@@ -99,3 +85,17 @@ input[type=range] { width: 70px; cursor: pointer; }
 .btn:hover { background: #f0f0f0; }
 
 #ghost-zone { position: absolute; bottom: 0; right: 0; width: 300px; height: 100px; z-index: 50; pointer-events: none; }
+
+/* --- NODE HOVER EFFECTS (NEW) --- */
+/* We target the group (.node) and style its children (rect, circle, etc) */
+g.node:hover rect,
+g.node:hover circle,
+g.node:hover polygon,
+g.node:hover path {
+    fill: #00ffff !important; /* Bright Cyan color */
+    stroke: #009999 !important; /* Darker Cyan border */
+    stroke-width: 3px !important;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.7)); /* Glow effect */
+    cursor: pointer;
+    transition: all 0.2s ease; /* Smooth transition */
+}
