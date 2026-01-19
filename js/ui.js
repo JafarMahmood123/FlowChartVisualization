@@ -23,7 +23,8 @@ export function updateStructUI(step, added, removed) {
         const el = document.createElement('div');
         el.className = 'struct-node node-exit';
         el.innerText = item;
-        if(isStack) structContent.prepend(el); else structContent.insertBefore(el, structContent.firstChild);
+        if(isStack) structContent.prepend(el); 
+        else structContent.insertBefore(el, structContent.firstChild);
     });
 
     if (structContent.children.length === 0) structContent.innerHTML = '<span style="color:#666; font-size:12px;">(Empty)</span>';
@@ -63,7 +64,7 @@ export function showDeletionCards(ids) {
     ids.forEach(id => {
         const card = document.createElement('div');
         card.className = 'deletion-card';
-        card.innerHTML = `<div class="del-info"><i class="fa-solid fa-trash-can del-icon"></i><span class="del-text">${id}</span></div>`;
+        card.innerHTML = `<div class="del-info"><i class="fa-solid fa-trash-can del-icon"></i><span class="del-text">${id}</span></div><span class="del-sub">Deleted</span>`;
         deletionFeed.appendChild(card);
         requestAnimationFrame(() => card.classList.add('show'));
         setTimeout(() => { card.style.opacity = '0'; card.style.transform = 'translateY(-20px)'; setTimeout(() => card.remove(), 500); }, 3000);
@@ -91,7 +92,10 @@ export function highlightNodes(newIds, oldIds) {
 export function highlightActiveNode(targetId) {
     d3.selectAll('.node').each(function() {
         const parts = this.id.split('-'); 
-        if (parts.includes(targetId)) { d3.select(this).select('rect, circle, polygon, path').style('fill', '#ffeb3b').style('stroke', '#ff9800').style('stroke-width', '4px'); }
+        if (parts.includes(targetId)) { 
+            d3.select(this).select('rect, circle, polygon, path')
+              .style('fill', '#ffeb3b').style('stroke', '#ff9800').style('stroke-width', '4px'); 
+        }
     });
 }
 
@@ -102,7 +106,9 @@ let currentTransform = d3.zoomIdentity;
 export function enableZoom() {
     const svg = d3.select("#mermaid-container svg");
     svg.attr("width", "100%").attr("height", "100%").style("max-width", "none");
-    zoomBehavior = d3.zoom().scaleExtent([0.1, 5]).on("zoom", (e) => { currentTransform = e.transform; svg.select("g").attr("transform", e.transform); });
+    zoomBehavior = d3.zoom()
+        .scaleExtent([0.1, 5])
+        .on("zoom", (e) => { currentTransform = e.transform; svg.select("g").attr("transform", e.transform); });
     svg.call(zoomBehavior);
     svg.call(zoomBehavior.transform, currentTransform);
 }
@@ -114,5 +120,8 @@ export function zoomAction(factor) {
 
 export function resetZoom() {
     const svg = d3.select("#mermaid-container svg");
-    if (!svg.empty() && zoomBehavior) { currentTransform = d3.zoomIdentity; zoomBehavior.transform(svg.transition().duration(750), d3.zoomIdentity); }
+    if (!svg.empty() && zoomBehavior) { 
+        currentTransform = d3.zoomIdentity; 
+        zoomBehavior.transform(svg.transition().duration(750), d3.zoomIdentity); 
+    }
 }

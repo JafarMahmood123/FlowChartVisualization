@@ -1,15 +1,14 @@
 /* globals CodeMirror, d3 */
-// 1. IMPORT MERMAID HERE (Fixes ReferenceError)
+// IMPORT MERMAID AS MODULE
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
 import { parseMermaidGraph } from './parser.js';
 import { getSequenceBFS, getSequenceDFS, getSequenceLinear } from './algorithms.js';
 import * as UI from './ui.js';
 
-// 2. Initialize Mermaid
 mermaid.initialize({ startOnLoad: false });
 
-// 3. CodeMirror Setup
+// CodeMirror
 CodeMirror.defineSimpleMode("mermaid", {
     start: [
         {regex: /graph|TD|LR|subgraph|end/, token: "keyword"},
@@ -20,16 +19,21 @@ CodeMirror.defineSimpleMode("mermaid", {
 });
 const editor = CodeMirror(document.getElementById("code-editor"), {
     value: `graph TD
-    Root((Root)) --> A[Branch A]
-    Root --> B[Branch B]
-    A --> A1[Leaf A1]
-    A --> A2[Leaf A2]
-    B --> B1[Leaf B1]
-    B --> B2[Leaf B2]`,
+    %% --- The Trigger ---
+    User((User)) -->|Init Transfer| App[Mobile App]
+    App -->|HTTPS Post| API[API Gateway]
+
+    %% --- Security Layer ---
+    subgraph Security_Zone
+        API --> Auth{Is Token Valid?}
+        Auth -- No --> Log1[Log Intrusion]
+        Auth -- Yes --> Rate{Rate Limit?}
+        Rate -- OK --> FraudScan{AI Fraud Check}
+    end`,
     mode: "mermaid", theme: "dracula", lineNumbers: true
 });
 
-// --- GLOBAL STATE ---
+// State
 let previousIDs = new Set();
 let timer;
 let simulationTimeout;
@@ -38,34 +42,26 @@ let currentSpeed = 800;
 let globalSequence = [];
 let globalIndex = 0;
 
-// --- DOM ELEMENTS ---
-const container = document.getElementById('mermaid-container');
-const styleSelect = document.getElementById('line-style');
-const playBtn = document.getElementById('play-btn');
-const stepDisplay = document.getElementById('step-counter');
-
-// --- EVENT LISTENERS ---
+// Listeners
 document.getElementById('speed-slider').addEventListener('input', (e) => currentSpeed = parseInt(e.target.value));
 editor.on("change", () => { clearTimeout(timer); timer = setTimeout(renderDiagram, 800); });
 
-// --- EXPOSE FUNCTIONS TO WINDOW (Fixes onclick errors) ---
+// Attach to Window for HTML Buttons
 window.togglePanel = (id) => {
     const panel = document.getElementById(`${id}-panel`);
     const btn = document.querySelector(`.toggle-btn[onclick="togglePanel('${id}')"]`);
     if (panel.classList.contains('visible')) { panel.classList.remove('visible'); btn.classList.remove('active'); }
     else { panel.classList.add('visible'); btn.classList.add('active'); }
 };
-
-// Connect UI functions to Window
 window.zoomAction = UI.zoomAction;
 window.resetZoom = UI.resetZoom;
 window.updateLineStyle = () => renderDiagram();
 
-// --- CORE LOGIC ---
+// Core
 const renderDiagram = async () => {
     fullStop();
     let code = editor.getValue();
-    const curveStyle = styleSelect ? styleSelect.value : 'basis';
+    const curveStyle = document.getElementById('line-style').value;
     const fullCode = `%%{init: {'flowchart': {'curve': '${curveStyle}'}}}%%\n` + code;
     
     const { allIDs } = parseMermaidGraph(code);
@@ -80,12 +76,12 @@ const renderDiagram = async () => {
         UI.animateDeletionsGhost(deletedNodes);
     }
 
-    container.innerHTML = `<pre class="mermaid">${fullCode}</pre>`;
+    document.getElementById('mermaid-container').innerHTML = `<pre class="mermaid">${fullCode}</pre>`;
     try {
-        await mermaid.run({ nodes: container.querySelectorAll('.mermaid') });
+        await mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
         UI.highlightNodes(newNodes, oldNodes);
         UI.enableZoom(); 
-    } catch (err) { console.log("Mermaid Syntax Error (Waiting...)", err); }
+    } catch (err) { console.log("Waiting..."); }
 };
 
 function generateSequence() {
@@ -98,7 +94,6 @@ function generateSequence() {
 
 function drawCurrentStep() {
     d3.selectAll('.node rect, .node circle, .node polygon, .node path').style('fill', '#e0e0e0').style('stroke', '#333').style('stroke-width', '1px');
-    
     const winSize = parseInt(document.getElementById('window-size').value) || 1;
     
     if(globalIndex < globalSequence.length && globalIndex >= 0) {
@@ -114,38 +109,27 @@ function drawCurrentStep() {
         UI.updateStructUI(currentStep, added, removed);
 
         for(let i = 0; i < winSize; i++) {
-            if (globalIndex + i < globalSequence.length) {
-                UI.highlightActiveNode(globalSequence[globalIndex + i].id);
-            }
+            if (globalIndex + i < globalSequence.length) UI.highlightActiveNode(globalSequence[globalIndex + i].id);
         }
     }
-    stepDisplay.innerText = `${Math.min(globalIndex + 1, globalSequence.length)}/${globalSequence.length}`;
+    document.getElementById('step-counter').innerText = `${Math.min(globalIndex + 1, globalSequence.length)}/${globalSequence.length}`;
 }
 
-// --- CONTROLS EXPOSED TO WINDOW ---
+// Controls
 window.togglePlay = () => {
-    if (isPlaying) { 
-        isPlaying = false; clearTimeout(simulationTimeout); playBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; 
-    } else { 
-        if (globalSequence.length === 0) generateSequence(); 
-        if (globalIndex >= globalSequence.length) globalIndex = 0; 
-        isPlaying = true; playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; autoStep(); 
-    }
+    if (isPlaying) { isPlaying = false; clearTimeout(simulationTimeout); document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-play"></i>'; } 
+    else { if (globalSequence.length === 0) generateSequence(); if (globalIndex >= globalSequence.length) globalIndex = 0; isPlaying = true; document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-pause"></i>'; autoStep(); }
 };
 
 window.manualStep = (dir) => {
-    if (isPlaying) window.togglePlay(); 
-    if (globalSequence.length === 0) generateSequence();
-    let newIndex = globalIndex + dir; 
-    if (newIndex < 0) newIndex = 0; 
-    if (newIndex > globalSequence.length - 1) newIndex = globalSequence.length - 1;
-    globalIndex = newIndex; 
-    drawCurrentStep();
+    if (isPlaying) window.togglePlay(); if (globalSequence.length === 0) generateSequence();
+    let newIndex = globalIndex + dir; if (newIndex < 0) newIndex = 0; if (newIndex > globalSequence.length - 1) newIndex = globalSequence.length - 1;
+    globalIndex = newIndex; drawCurrentStep();
 };
 
 window.fullStop = () => {
-    isPlaying = false; clearTimeout(simulationTimeout); playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
-    globalIndex = 0; globalSequence = []; stepDisplay.innerText = "0/0";
+    isPlaying = false; clearTimeout(simulationTimeout); document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
+    globalIndex = 0; globalSequence = []; document.getElementById('step-counter').innerText = "0/0";
     document.getElementById('ds-struct-content').innerHTML = "<span style='color:#666; font-size:12px;'>(Empty)</span>"; 
     document.getElementById('ds-visited-content').innerHTML = "";
     document.getElementById('log-content').innerHTML = '<div class="log-item">Ready...</div>';
@@ -155,12 +139,9 @@ window.fullStop = () => {
 window.resetSimulation = () => window.fullStop();
 
 function autoStep() {
-    if (!isPlaying) return; 
-    if (globalIndex >= globalSequence.length) { window.togglePlay(); return; }
-    drawCurrentStep(); 
-    globalIndex++; 
-    simulationTimeout = setTimeout(autoStep, currentSpeed);
+    if (!isPlaying) return; if (globalIndex >= globalSequence.length) { window.togglePlay(); return; }
+    drawCurrentStep(); globalIndex++; simulationTimeout = setTimeout(autoStep, currentSpeed);
 }
 
-// Initial Run
+// Init
 setTimeout(renderDiagram, 500);
