@@ -2,165 +2,165 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>D3 + Mermaid + Zoom</title>
-    <!-- 1. Import Mermaid -->
+    <title>Visualizer: Data Structures</title>
+    
+    <!-- Libraries -->
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
         mermaid.initialize({ startOnLoad: false });
         window.mermaid = mermaid;
     </script>
-    <!-- 2. Import D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- 3. Import FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/addon/mode/simple.min.js"></script>
+    
     <style>
-        body {
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #f4f4f4;
-            overflow: hidden;
+        body { margin: 0; display: flex; height: 100vh; font-family: 'Segoe UI', sans-serif; background: #f4f4f4; overflow: hidden; }
+
+        /* LEFT: Editor Pane */
+        #editor-pane { width: 35%; background: #282c34; display: flex; flex-direction: column; border-right: 2px solid #ccc; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.2); }
+        .header { padding: 10px 15px; background: #21252b; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .CodeMirror { flex-grow: 1; height: 100%; font-family: 'Fira Code', 'Consolas', monospace; font-size: 14px; }
+        select { background: #3e4451; color: white; border: 1px solid #555; padding: 5px; border-radius: 4px; outline: none; cursor: pointer; }
+
+        /* RIGHT: Visualization Pane */
+        #viz-pane { width: 65%; position: relative; background: white; display: flex; flex-direction: column; overflow: hidden; }
+        #mermaid-container { flex-grow: 1; width: 100%; overflow: hidden; cursor: grab; position: relative; }
+        #mermaid-container:active { cursor: grabbing; }
+
+        /* --- UI PANELS --- */
+        
+        /* 1. Log Panel (Top Left) */
+        #log-panel {
+            position: absolute; top: 20px; left: 20px; width: 280px; max-height: 180px;
+            background: rgba(30, 30, 30, 0.95); color: #fff; border-radius: 8px;
+            font-family: 'Consolas', monospace; font-size: 12px; display: flex; flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 90; backdrop-filter: blur(5px);
         }
+        #log-header { padding: 8px 12px; background: rgba(255, 255, 255, 0.1); font-weight: bold; border-bottom: 1px solid #444; }
+        #log-content { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+        .log-item { display: flex; gap: 8px; opacity: 0.7; }
+        .log-item.active { opacity: 1; font-weight: bold; color: #fff; }
+        .log-bfs { color: #4caf50; } .log-dfs { color: #2196f3; }
 
-        /* LEFT: Editor */
-        #editor-pane {
-            width: 35%;
-            background: #282c34;
-            display: flex;
-            flex-direction: column;
-            border-right: 2px solid #ccc;
-            z-index: 10;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.2);
-        }
-
-        .header {
-            padding: 10px 15px;
-            background: #21252b;
-            color: white;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        textarea {
-            flex-grow: 1;
-            background-color: #282c34;
-            color: #abb2bf;
-            border: none;
-            padding: 20px;
-            font-family: 'Consolas', monospace;
-            font-size: 14px;
-            resize: none;
-            outline: none;
-            line-height: 1.5;
-        }
-
-        /* RIGHT: Visualization */
-        #viz-pane {
-            width: 65%;
-            position: relative;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; /* Hide scrollbars, we use D3 zoom now */
-        }
-
-        #mermaid-container {
-            flex-grow: 1;
-            width: 100%;
-            height: 100%;
-            cursor: grab; /* Show grab cursor */
-        }
-
-        #mermaid-container:active {
-            cursor: grabbing;
-        }
-
-        /* Zoom Controls */
-        #controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            z-index: 100;
-        }
-
-        .btn {
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            width: 35px;
-            height: 35px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            transition: background 0.2s;
-        }
-
-        .btn:hover { background: #f0f0f0; }
-
-        /* Ghost Zone */
-        #ghost-zone {
-            height: 120px;
-            background-color: #fff0f0;
-            border-top: 2px dashed #ffcccc;
-            position: relative;
-            flex-shrink: 0;
-            z-index: 20;
+        /* 2. Data Structure Panel (Bottom Left) */
+        #ds-panel {
+            position: absolute; top: 210px; left: 20px; width: 280px; bottom: 150px; /* Stretch down */
+            background: rgba(30, 30, 30, 0.95); color: #fff; border-radius: 8px;
+            font-family: 'Consolas', monospace; display: flex; flex-direction: column;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 90; backdrop-filter: blur(5px);
         }
         
-        #ghost-label {
-            position: absolute;
-            top: 5px;
-            left: 10px;
-            color: #ff4d4d;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
+        .ds-section { padding: 10px; border-bottom: 1px solid #444; display: flex; flex-direction: column; gap: 5px; }
+        .ds-title { font-size: 11px; text-transform: uppercase; color: #888; font-weight: bold; margin-bottom: 5px; }
+        
+        /* Box styling for Queue/Stack items */
+        .struct-container { display: flex; flex-wrap: wrap; gap: 5px; min-height: 30px; }
+        .struct-node {
+            background: #444; border: 1px solid #666; padding: 4px 8px; border-radius: 4px;
+            font-size: 12px; color: white; animation: popIn 0.3s ease;
         }
+        .struct-node.visited { background: #2e7d32; border-color: #4caf50; }
+        
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+        /* 3. Controls (Bottom Center) */
+        #playback-controls {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: white; padding: 10px 20px; border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: flex; gap: 12px; align-items: center;
+            z-index: 100; font-size: 14px; white-space: nowrap;
+        }
+        .control-group { display: flex; align-items: center; gap: 5px; }
+        .separator { width: 1px; height: 20px; background: #ddd; margin: 0 5px; }
+        button { background: #2196F3; color: white; border: none; padding: 8px 14px; border-radius: 20px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: #1976D2; }
+        button.stop { background: #f44336; }
+        button.step-btn { background: #607D8B; }
+
+        input[type=number] { width: 40px; text-align: center; }
+        input[type=range] { width: 70px; cursor: pointer; }
+
+        /* Ghost Zone */
+        #ghost-zone { position: absolute; bottom: 0; right: 0; width: 300px; height: 100px; z-index: 50; pointer-events: none; }
+        #d3-canvas { pointer-events: none; }
     </style>
 </head>
 <body>
 
-    <!-- LEFT PANE -->
     <div id="editor-pane">
         <div class="header">
-            <span>Editor</span>
-            <i class="fa-solid fa-code"></i>
+            <span><i class="fa-solid fa-code"></i> Editor</span>
+            <select id="line-style" onchange="updateLineStyle()">
+                <option value="basis">Curved</option>
+                <option value="linear">Straight</option>
+                <option value="step">Corner</option>
+            </select>
         </div>
-        <textarea id="code-input" spellcheck="false" placeholder="Type Mermaid code here...">
-graph TD
-    Start((Start)) --> Input[/Input/]
-    Input --> Check{Valid?}
-    Check -- Yes --> Save[(Database)]
-    Check -- No --> Error[Log Error]</textarea>
+        <div id="code-editor"></div>
     </div>
 
-    <!-- RIGHT PANE -->
     <div id="viz-pane">
         
-        <!-- Zoom Buttons -->
-        <div id="controls">
-            <div class="btn" onclick="zoomAction(1.2)" title="Zoom In"><i class="fa-solid fa-plus"></i></div>
-            <div class="btn" onclick="zoomAction(0.8)" title="Zoom Out"><i class="fa-solid fa-minus"></i></div>
-            <div class="btn" onclick="resetZoom()" title="Reset View"><i class="fa-solid fa-compress"></i></div>
+        <!-- LOG PANEL -->
+        <div id="log-panel">
+            <div id="log-header"><span><i class="fa-solid fa-terminal"></i> Execution Log</span></div>
+            <div id="log-content"><div class="log-item">Ready...</div></div>
         </div>
 
-        <!-- Diagram Area -->
+        <!-- DATA STRUCTURE PANEL (NEW) -->
+        <div id="ds-panel">
+            <!-- Active Structure (Queue or Stack) -->
+            <div class="ds-section" style="flex-grow: 1;">
+                <div class="ds-title" id="ds-struct-title">Queue / Stack</div>
+                <div class="struct-container" id="ds-struct-content">
+                    <span style="color:#666; font-size:12px;">(Empty)</span>
+                </div>
+            </div>
+            <!-- Visited Set -->
+            <div class="ds-section" style="height: 30%;">
+                <div class="ds-title">Visited Nodes</div>
+                <div class="struct-container" id="ds-visited-content"></div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div id="playback-controls">
+            <select id="algo-mode" onchange="resetSimulation()">
+                <option value="bfs">BFS (Queue)</option>
+                <option value="dfs">DFS (Stack)</option>
+                <option value="linear">Linear</option>
+            </select>
+            <div class="separator"></div>
+            <div class="control-group">
+                <i class="fa-solid fa-gauge-high" style="color:#888;"></i>
+                <input type="range" id="speed-slider" min="100" max="2000" step="100" value="800">
+            </div>
+            <div class="separator"></div>
+            <div class="control-group">
+                <span>Win:</span>
+                <input type="number" id="window-size" value="1" min="1" max="5">
+            </div>
+            <div class="separator"></div>
+            <button class="step-btn" onclick="manualStep(-1)"><i class="fa-solid fa-backward-step"></i></button>
+            <button onclick="togglePlay()" id="play-btn"><i class="fa-solid fa-play"></i></button>
+            <button class="step-btn" onclick="manualStep(1)"><i class="fa-solid fa-forward-step"></i></button>
+            <button class="stop" onclick="fullStop()"><i class="fa-solid fa-stop"></i></button>
+            <div class="separator"></div>
+            <span id="step-counter" style="font-family:monospace; font-weight:bold; color:#555;">0/0</span>
+        </div>
+
         <div id="mermaid-container">
             <pre class="mermaid" id="render-target"></pre>
         </div>
-
-        <!-- Ghost Zone -->
+        
+        <!-- Deleted Nodes Animation Layer -->
         <div id="ghost-zone">
-            <div id="ghost-label">Deleted Nodes</div>
             <svg id="d3-canvas" width="100%" height="100%"></svg>
         </div>
     </div>
@@ -168,144 +168,366 @@ graph TD
     <script type="module">
         import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
-        const input = document.getElementById('code-input');
+        // --- DOM ELEMENTS ---
         const container = document.getElementById('mermaid-container');
+        const styleSelect = document.getElementById('line-style');
+        const playBtn = document.getElementById('play-btn');
+        const stepDisplay = document.getElementById('step-counter');
+        const logContent = document.getElementById('log-content');
         
-        // --- STATE MANAGEMENT ---
+        // Data Structure UI
+        const structTitle = document.getElementById('ds-struct-title');
+        const structContent = document.getElementById('ds-struct-content');
+        const visitedContent = document.getElementById('ds-visited-content');
+
+        // --- CODEMIRROR ---
+        CodeMirror.defineSimpleMode("mermaid", {
+            start: [
+                {regex: /graph|TD|LR|subgraph|end/, token: "keyword"},
+                {regex: /-->|-\.->|==>|--/, token: "operator"},
+                {regex: /\(\(.*\)\)|\[.*\]|\{.*\}|\(.*\)/, token: "string"},
+                {regex: /[\w]+/, token: "variable"},
+            ]
+        });
+        const editor = CodeMirror(document.getElementById("code-editor"), {
+            value: `graph TD
+    Root((Root)) --> A[Branch A]
+    Root --> B[Branch B]
+    A --> A1[Leaf A1]
+    A --> A2[Leaf A2]
+    B --> B1[Leaf B1]
+    B --> B2[Leaf B2]`,
+            mode: "mermaid", theme: "dracula", lineNumbers: true
+        });
+
+        // --- STATE ---
         let previousIDs = new Set();
         let timer;
-        
-        // Zoom State
-        let currentTransform = d3.zoomIdentity; // Stores x, y, k (scale)
-        let zoomBehavior; // Holds the D3 zoom function
+        let zoomBehavior;
+        let simulationTimeout;
+        let isPlaying = false;
+        let currentSpeed = 800;
+        let globalSequence = [];
+        let globalIndex = 0;
 
-        // --- 1. PARSER ---
-        function extractIDs(text) {
-            const ids = new Set();
-            const regex = /(?:^|\s|-->|--)([\w]+)(?=\[|\(|\{|\(\()|([\w]+)(?=\s*-->)/gm;
-            let match;
-            while ((match = regex.exec(text)) !== null) {
-                let id = match[1] || match[2];
-                if(id && !['graph','TD','LR'].includes(id)) ids.add(id);
-            }
-            return ids;
+        document.getElementById('speed-slider').addEventListener('input', (e) => currentSpeed = parseInt(e.target.value));
+
+        // --- PARSER ---
+        function cleanID(raw) {
+            if(!raw) return null;
+            const match = raw.trim().match(/^([\w-]+)/);
+            const id = match ? match[1] : null;
+            if (id && ['graph', 'TD', 'LR', 'subgraph', 'end', 'style', 'classDef'].includes(id)) return null;
+            return id;
         }
 
-        // --- 2. RENDER LOOP ---
+        function parseMermaidGraph(text) {
+            const adj = {};
+            const allIDs = new Set();
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                const parts = line.split(/\s*(?:-->|-.->|==>|--.*?>)\s*/);
+                if (parts.length >= 2) {
+                    for (let i = 0; i < parts.length - 1; i++) {
+                        const u = cleanID(parts[i]);
+                        const v = cleanID(parts[i+1]);
+                        if (u && v) {
+                            allIDs.add(u); allIDs.add(v);
+                            if (!adj[u]) adj[u] = [];
+                            if (!adj[u].includes(v)) adj[u].push(v);
+                        }
+                    }
+                } else {
+                    const single = cleanID(parts[0]);
+                    if (single) allIDs.add(single);
+                }
+            });
+            allIDs.forEach(id => { if (!adj[id]) adj[id] = []; });
+            const startNode = [...allIDs][0]; 
+            return { adj, allIDs, startNode };
+        }
+
+        // --- ALGORITHMS WITH SNAPSHOTS ---
+        
+        function getSequenceBFS(text) {
+            const { adj, startNode } = parseMermaidGraph(text);
+            if (!startNode) return [];
+            
+            const visited = new Set();
+            const queue = [startNode];
+            const result = [];
+            
+            // Initial Step
+            result.push({ 
+                id: startNode, 
+                msg: `Start at [${startNode}]`,
+                type: 'log-bfs',
+                structure: [...queue], // Snapshot
+                structName: 'Queue',
+                visited: []
+            });
+
+            while (queue.length > 0) {
+                const node = queue.shift();
+                
+                if (!visited.has(node)) {
+                    visited.add(node);
+                    
+                    const neighbors = adj[node] || [];
+                    const unvisited = neighbors.filter(n => !visited.has(n));
+                    
+                    // Add neighbors to queue
+                    unvisited.forEach(n => {
+                        if(!queue.includes(n)) queue.push(n);
+                    });
+
+                    result.push({
+                        id: node,
+                        msg: `Visited ${node}. Queueing: [${unvisited.join(', ')}]`,
+                        type: 'log-bfs',
+                        structure: [...queue], // Snapshot of Queue AFTER adding neighbors
+                        structName: 'Queue (FIFO)',
+                        visited: [...visited]
+                    });
+                }
+            }
+            return result;
+        }
+
+        function getSequenceDFS(text) {
+            const { adj, startNode } = parseMermaidGraph(text);
+            if (!startNode) return [];
+
+            const visited = new Set();
+            const stack = [startNode];
+            const result = [];
+
+            result.push({ 
+                id: startNode, 
+                msg: `Start. Push [${startNode}]`,
+                type: 'log-dfs',
+                structure: [...stack],
+                structName: 'Stack',
+                visited: []
+            });
+
+            while (stack.length > 0) {
+                const node = stack.pop();
+                
+                if (!visited.has(node)) {
+                    visited.add(node);
+                    
+                    const neighbors = (adj[node] || []).slice().reverse();
+                    const unvisited = neighbors.filter(n => !visited.has(n));
+                    
+                    unvisited.forEach(n => stack.push(n));
+
+                    result.push({
+                        id: node,
+                        msg: `Popped ${node}. Pushing: [${unvisited.join(', ')}]`,
+                        type: 'log-dfs',
+                        structure: [...stack], // Snapshot of Stack
+                        structName: 'Stack (LIFO)',
+                        visited: [...visited]
+                    });
+                }
+            }
+            return result;
+        }
+
+        function getSequenceLinear(text) {
+            const { allIDs } = parseMermaidGraph(text);
+            return [...allIDs].map(id => ({
+                id: id, msg: `Process Node: ${id}`, type: 'log-lin', 
+                structure: [], structName: 'Linear List', visited: []
+            }));
+        }
+
+        // --- RENDER & LOGIC ---
+
         const renderDiagram = async () => {
-            const code = input.value;
-            const currentIDs = extractIDs(code);
+            fullStop();
+            let code = editor.getValue();
+            const curveStyle = styleSelect.value;
+            const fullCode = `%%{init: {'flowchart': {'curve': '${curveStyle}'}}}%%\n` + code;
+            
+            const { allIDs } = parseMermaidGraph(code);
+            const currentIDs = allIDs;
             const newNodes = [...currentIDs].filter(x => !previousIDs.has(x));
             const deletedNodes = [...previousIDs].filter(x => !currentIDs.has(x));
             const oldNodes = [...currentIDs].filter(x => previousIDs.has(x));
             previousIDs = currentIDs;
 
-            // Animate Deletions
             if (deletedNodes.length > 0) animateDeletions(deletedNodes);
 
-            // Render Mermaid
-            container.innerHTML = `<pre class="mermaid">${code}</pre>`;
-            
+            container.innerHTML = `<pre class="mermaid">${fullCode}</pre>`;
             try {
                 await mermaid.run({ nodes: container.querySelectorAll('.mermaid') });
-                
-                // Color Highlighting
                 highlightNodes(newNodes, oldNodes);
-
-                // *** APPLY ZOOM LOGIC ***
                 enableZoom();
-
-            } catch (err) {
-                console.log("Waiting for valid syntax...");
-            }
+            } catch (err) { console.log("Waiting..."); }
         };
 
-        // --- 3. ZOOM LOGIC (The New Part) ---
-        function enableZoom() {
-            // Select the SVG generated by Mermaid
-            const svg = d3.select("#mermaid-container svg");
+        function drawCurrentStep() {
+            // Reset Colors
+            d3.selectAll('.node rect, .node circle, .node polygon, .node path')
+              .style('fill', '#e0e0e0').style('stroke', '#333').style('stroke-width', '1px');
             
-            // Ensure SVG fills the container so we can drag anywhere
-            svg.attr("width", "100%").attr("height", "100%");
-            svg.style("max-width", "none");
+            const winSize = parseInt(document.getElementById('window-size').value) || 1;
+            
+            if(globalIndex < globalSequence.length && globalIndex >= 0) {
+                const currentStep = globalSequence[globalIndex];
+                
+                // 1. Update Log
+                updateLogUI();
+                
+                // 2. Update Data Structure UI (Queue/Stack)
+                updateStructUI(currentStep);
 
-            // Define D3 Zoom Behavior
-            zoomBehavior = d3.zoom()
-                .scaleExtent([0.1, 5]) // Limit zoom from 0.1x to 5x
-                .on("zoom", (event) => {
-                    // Update global state
-                    currentTransform = event.transform;
-                    // Apply transform to the INNER group of the SVG (usually the first <g>)
-                    svg.select("g").attr("transform", event.transform);
-                });
-
-            // Attach zoom to the SVG
-            svg.call(zoomBehavior);
-
-            // RESTORE previous position (so it doesn't jump back to center when you type)
-            // But if it's the very first render, currentTransform is Identity (0,0), so it stays centered.
-            svg.call(zoomBehavior.transform, currentTransform);
+                // 3. Highlight Nodes
+                for(let i = 0; i < winSize; i++) {
+                    if (globalIndex + i < globalSequence.length) {
+                        const step = globalSequence[globalIndex + i];
+                        highlightActiveNode(step.id);
+                    }
+                }
+            }
+            stepDisplay.innerText = `${Math.min(globalIndex + 1, globalSequence.length)}/${globalSequence.length}`;
         }
 
-        // Exposed functions for Buttons
-        window.zoomAction = (factor) => {
-            const svg = d3.select("#mermaid-container svg");
-            if (!svg.empty() && zoomBehavior) {
-                zoomBehavior.scaleBy(svg.transition().duration(300), factor);
+        // --- NEW: DATA STRUCTURE UI UPDATER ---
+        function updateStructUI(step) {
+            // Update Title
+            structTitle.innerText = step.structName || "Data Structure";
+            
+            // Render Queue/Stack
+            structContent.innerHTML = "";
+            if (step.structure && step.structure.length > 0) {
+                // If Stack (DFS), we might want to reverse visual order to show "Top"
+                const list = step.structName.includes('Stack') ? [...step.structure].reverse() : step.structure;
+                
+                list.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'struct-node';
+                    el.innerText = item;
+                    structContent.appendChild(el);
+                });
+            } else {
+                structContent.innerHTML = '<span style="color:#666; font-size:12px;">(Empty)</span>';
             }
-        };
 
-        window.resetZoom = () => {
-            const svg = d3.select("#mermaid-container svg");
-            if (!svg.empty() && zoomBehavior) {
-                // Reset to default (Scale 1, x 0, y 0)
-                currentTransform = d3.zoomIdentity;
-                zoomBehavior.transform(svg.transition().duration(750), d3.zoomIdentity);
+            // Render Visited
+            visitedContent.innerHTML = "";
+            if (step.visited && step.visited.length > 0) {
+                step.visited.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = 'struct-node visited';
+                    el.innerText = item;
+                    visitedContent.appendChild(el);
+                });
             }
-        };
+        }
 
-        // --- 4. COLOR LOGIC ---
+        function updateLogUI() {
+            logContent.innerHTML = "";
+            const start = Math.max(0, globalIndex - 8);
+            for(let i = start; i <= globalIndex; i++) {
+                if(i < globalSequence.length) {
+                    const step = globalSequence[i];
+                    const div = document.createElement('div');
+                    div.className = `log-item ${i === globalIndex ? 'active' : ''}`;
+                    div.innerHTML = `<span style="color:#888;">${i+1}.</span><span class="${step.type}">${step.msg}</span>`;
+                    logContent.appendChild(div);
+                }
+            }
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        // --- STANDARD UTILS ---
+        function animateDeletions(ids) {
+            const svg = d3.select("#d3-canvas");
+            const groups = svg.selectAll("g.deleted-node").data(ids, d => d);
+            const enter = groups.enter().append("g").attr("class", "deleted-node").attr("transform", (d, i) => `translate(${250}, ${100 - (i * 20)})`); // Stack in corner
+            enter.append("circle").attr("r", 0).attr("fill", "#ff4d4d").transition().duration(500).attr("r", 15);
+            enter.append("text").text(d => d.substring(0,4)).attr("text-anchor", "middle").attr("dy", 4).attr("fill", "white").style("font-size", "9px").style("opacity", 0).transition().duration(500).style("opacity", 1);
+            enter.transition().delay(2000).duration(1000).style("opacity", 0).remove();
+        }
+
         function highlightNodes(newIds, oldIds) {
             d3.selectAll('.node').each(function() {
-                const element = d3.select(this);
-                const fullId = this.id;
-                const shape = element.select('rect, circle, polygon, path');
-
-                if (newIds.some(id => fullId.includes(id))) {
-                    shape.style('fill', '#4caf50').transition().duration(1500).style('fill', '#ddf7e1'); // Green
-                } else if (oldIds.some(id => fullId.includes(id))) {
-                    shape.style('fill', '#e0e0e0'); // Gray
+                const parts = this.id.split('-');
+                const shape = d3.select(this).select('rect, circle, polygon, path');
+                if (newIds.some(id => parts.includes(id))) {
+                    shape.style('fill', '#4caf50').transition().duration(1500).style('fill', '#ddf7e1'); 
+                } else if (oldIds.some(id => parts.includes(id))) {
+                    shape.style('fill', '#e0e0e0');
                 }
             });
         }
 
-        // --- 5. GHOST ZONE LOGIC ---
-        function animateDeletions(ids) {
-            const svg = d3.select("#d3-canvas");
-            const circles = svg.selectAll("g").data(ids, d => d);
-            const enter = circles.enter().append("g")
-                .attr("transform", (d, i) => `translate(${40 + (i * 50)}, 60)`);
-
-            enter.append("circle")
-                .attr("r", 0).attr("fill", "#ff4d4d")
-                .transition().duration(500).attr("r", 20);
-
-            enter.append("text")
-                .text(d => d.substring(0,5)) // Truncate long text
-                .attr("text-anchor", "middle").attr("dy", 4)
-                .attr("fill", "white").style("font-size", "10px")
-                .style("opacity", 0).transition().duration(500).style("opacity", 1);
-
-            enter.transition().delay(2000).duration(1000).style("opacity", 0).remove();
+        function highlightActiveNode(targetId) {
+            d3.selectAll('.node').each(function() {
+                const parts = this.id.split('-'); 
+                if (parts.includes(targetId)) {
+                    d3.select(this).select('rect, circle, polygon, path')
+                        .style('fill', '#ffeb3b').style('stroke', '#ff9800').style('stroke-width', '4px');
+                }
+            });
         }
 
-        // Input Listener
-        input.addEventListener('input', () => {
-            clearTimeout(timer);
-            timer = setTimeout(renderDiagram, 800);
-        });
+        // --- PLAYBACK CONTROLLER ---
+        function generateSequence() {
+            const mode = document.getElementById('algo-mode').value;
+            const code = editor.getValue();
+            if (mode === 'bfs') globalSequence = getSequenceBFS(code);
+            else if (mode === 'dfs') globalSequence = getSequenceDFS(code);
+            else globalSequence = getSequenceLinear(code);
+        }
 
-        // Initial Run
+        window.togglePlay = () => {
+            if (isPlaying) { isPlaying = false; clearTimeout(simulationTimeout); playBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; } 
+            else {
+                if (globalSequence.length === 0) generateSequence();
+                if (globalIndex >= globalSequence.length) globalIndex = 0;
+                isPlaying = true; playBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; autoStep();
+            }
+        };
+
+        window.manualStep = (dir) => {
+            if (isPlaying) window.togglePlay();
+            if (globalSequence.length === 0) generateSequence();
+            let newIndex = globalIndex + dir;
+            if (newIndex < 0) newIndex = 0; if (newIndex > globalSequence.length - 1) newIndex = globalSequence.length - 1;
+            globalIndex = newIndex; drawCurrentStep();
+        };
+
+        window.fullStop = () => {
+            isPlaying = false; clearTimeout(simulationTimeout); playBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+            globalIndex = 0; globalSequence = []; stepDisplay.innerText = "0/0";
+            document.getElementById('ds-struct-content').innerHTML = "";
+            document.getElementById('ds-visited-content').innerHTML = "";
+            d3.selectAll('.node rect, .node circle, .node polygon, .node path').style('fill', '#e0e0e0').style('stroke', '#333').style('stroke-width', '1px');
+        };
+
+        window.resetSimulation = () => fullStop();
+
+        function autoStep() {
+            if (!isPlaying) return;
+            if (globalIndex >= globalSequence.length) { window.togglePlay(); return; }
+            drawCurrentStep(); globalIndex++; simulationTimeout = setTimeout(autoStep, currentSpeed);
+        }
+
+        window.updateLineStyle = () => renderDiagram();
+        window.zoomAction = (f) => { const s = d3.select("#mermaid-container svg"); if (!s.empty() && zoomBehavior) zoomBehavior.scaleBy(s.transition().duration(300), f); };
+        window.resetZoom = () => { const s = d3.select("#mermaid-container svg"); if (!s.empty() && zoomBehavior) { d3.zoomIdentity; zoomBehavior.transform(s.transition().duration(750), d3.zoomIdentity); } };
+        function enableZoom() {
+            const svg = d3.select("#mermaid-container svg");
+            svg.attr("width", "100%").attr("height", "100%").style("max-width", "none");
+            zoomBehavior = d3.zoom().scaleExtent([0.1, 5]).on("zoom", (e) => { svg.select("g").attr("transform", e.transform); });
+            svg.call(zoomBehavior);
+        }
+
+        editor.on("change", () => { clearTimeout(timer); timer = setTimeout(renderDiagram, 800); });
         renderDiagram();
     </script>
 </body>
