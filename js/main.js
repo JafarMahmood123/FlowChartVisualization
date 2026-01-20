@@ -8,10 +8,10 @@ mermaid.initialize({ startOnLoad: false });
 
 CodeMirror.defineSimpleMode("mermaid", {
     start: [
-        {regex: /graph|TD|LR|subgraph|end/, token: "keyword"},
-        {regex: /-->|-\.->|==>|--/, token: "operator"},
-        {regex: /\(\(.*\)\)|\[.*\]|\{.*\}|\(.*\)/, token: "string"},
-        {regex: /[\w]+/, token: "variable"},
+        { regex: /graph|TD|LR|subgraph|end/, token: "keyword" },
+        { regex: /-->|-\.->|==>|--/, token: "operator" },
+        { regex: /\(\(.*\)\)|\[.*\]|\{.*\}|\(.*\)/, token: "string" },
+        { regex: /[\w]+/, token: "variable" },
     ]
 });
 
@@ -59,11 +59,11 @@ window.updateLineStyle = () => renderDiagram();
 const renderDiagram = async () => {
     fullStop();
     let code = editor.getValue();
-    
+
     // FIX: Retrieve style and inject config for corners
     const curveStyle = document.getElementById('line-style').value;
     const fullCode = `%%{init: {'flowchart': {'curve': '${curveStyle}'}}}%%\n` + code;
-    
+
     const { allIDs } = parseMermaidGraph(code);
     const currentIDs = allIDs;
     const newNodes = [...currentIDs].filter(x => !previousIDs.has(x));
@@ -80,7 +80,7 @@ const renderDiagram = async () => {
     try {
         await mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
         UI.highlightNodes(newNodes, oldNodes);
-        UI.enableZoom(); 
+        UI.enableZoom();
     } catch (err) { console.log("Waiting..."); }
 };
 
@@ -95,11 +95,11 @@ function generateSequence() {
 function drawCurrentStep() {
     d3.selectAll('.node rect, .node circle, .node polygon, .node path').style('fill', '#e0e0e0').style('stroke', '#333').style('stroke-width', '1px');
     const winSize = parseInt(document.getElementById('window-size').value) || 1;
-    
-    if(globalIndex < globalSequence.length && globalIndex >= 0) {
+
+    if (globalIndex < globalSequence.length && globalIndex >= 0) {
         const currentStep = globalSequence[globalIndex];
         const prevStep = globalIndex > 0 ? globalSequence[globalIndex - 1] : { structure: [] };
-        
+
         const currentStruct = currentStep.structure || [];
         const prevStruct = prevStep.structure || [];
         const added = currentStruct.filter(x => !prevStruct.includes(x));
@@ -108,15 +108,19 @@ function drawCurrentStep() {
         UI.updateLogUI(globalSequence, globalIndex, added, removed);
         UI.updateStructUI(currentStep, added, removed);
 
-        for(let i = 0; i < winSize; i++) {
+        for (let i = 0; i < winSize; i++) {
             if (globalIndex + i < globalSequence.length) UI.highlightActiveNode(globalSequence[globalIndex + i].id);
+        }
+
+        for (let i = 0; i < globalIndex; i++) {
+            UI.highlightVisitedNode(globalSequence[i].id);
         }
     }
     document.getElementById('step-counter').innerText = `${Math.min(globalIndex + 1, globalSequence.length)}/${globalSequence.length}`;
 }
 
 window.togglePlay = () => {
-    if (isPlaying) { isPlaying = false; clearTimeout(simulationTimeout); document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-play"></i>'; } 
+    if (isPlaying) { isPlaying = false; clearTimeout(simulationTimeout); document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-play"></i>'; }
     else { if (globalSequence.length === 0) generateSequence(); if (globalIndex >= globalSequence.length) globalIndex = 0; isPlaying = true; document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-pause"></i>'; autoStep(); }
 };
 
@@ -129,7 +133,7 @@ window.manualStep = (dir) => {
 window.fullStop = () => {
     isPlaying = false; clearTimeout(simulationTimeout); document.getElementById('play-btn').innerHTML = '<i class="fa-solid fa-play"></i>';
     globalIndex = 0; globalSequence = []; document.getElementById('step-counter').innerText = "0/0";
-    document.getElementById('ds-struct-content').innerHTML = "<span style='color:#666; font-size:12px;'>(Empty)</span>"; 
+    document.getElementById('ds-struct-content').innerHTML = "<span style='color:#666; font-size:12px;'>(Empty)</span>";
     document.getElementById('ds-visited-content').innerHTML = "";
     document.getElementById('log-content').innerHTML = '<div class="log-item">Ready...</div>';
     d3.selectAll('.node rect, .node circle, .node polygon, .node path').style('fill', '#e0e0e0').style('stroke', '#333').style('stroke-width', '1px');

@@ -98,6 +98,16 @@ export function highlightActiveNode(targetId) {
     });
 }
 
+export function highlightVisitedNode(targetId) {
+    d3.selectAll('.node').each(function() {
+        const parts = this.id.split('-'); 
+        if (parts.includes(targetId)) { 
+            d3.select(this).select('rect, circle, polygon, path')
+              .style('fill', '#609cf5').style('stroke', '#026fad').style('stroke-width', '4px'); 
+        }
+    });
+}
+
 // --- ZOOM LOGIC ---
 let zoomBehavior;
 let currentTransform = d3.zoomIdentity;
